@@ -2,11 +2,12 @@ use std::collections::HashMap;
 use std::path::{PathBuf};
 
 use tera::{GlobalFn, Value, from_value, to_value, Result};
+use counter::Counter;
 
 use content::{Page, Section};
 use config::Config;
 use utils::site::resolve_internal_link;
-use taxonomies::Taxonomy;
+use taxonomies::{Taxonomy, TaxonomyKind};
 
 
 macro_rules! required_string_arg {
@@ -125,6 +126,31 @@ pub fn make_get_taxonomy_url(tags: Option<Taxonomy>, categories: Option<Taxonomy
         } else {
             bail!("`get_taxonomy_url` tried to get a taxonomy of kind `{}` but there isn't any", kind);
         }
+    })
+}
+
+pub fn make_get_taxonomy_variants(pages: &HashMap<PathBuf, Page>) -> GlobalFn {
+    let mut counted_tags = HashMap::<String, u64>::new();
+
+    let tags: Counter<String> = Counter::init(pages.values().map(|p| &p.meta.tags)
+        .flat_map(|x| x.iter().flat_map(|y| y))
+        .cloned());
+    let categories: Counter<String> = Counter::init(pages.values().map(|p| &p.meta.category)
+        .flat_map(|x| x)
+        .cloned());
+
+    Box::new(move |args| -> Result<Value> {
+        let kind = required_string_arg!(args.get("kind"), "`get_taxonomy_variants` requires a `kind` argument with a string value");
+        let kind = match kind.as_ref() {
+            "tag" => TaxonomyKind::Tags,
+            "category" => TaxonomyKind::Categories,
+            _ => return Err("`get_taxonomy_variants` can only get `tag` or `category` for the `kind` argument".into()),
+        };
+
+        Ok(to_value(match kind {
+            TaxonomyKind::Tags => tags.most_common_ordered(),
+            TaxonomyKind::Categories => categories.most_common_ordered(),
+        }).unwrap())
     })
 }
 

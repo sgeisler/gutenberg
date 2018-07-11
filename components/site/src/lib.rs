@@ -278,6 +278,10 @@ impl Site {
             global_fns::make_get_taxonomy_url(self.tags.clone(), self.categories.clone())
         );
         self.tera.register_global_function(
+            "get_taxonomy_variants",
+            global_fns::make_get_taxonomy_variants(&self.pages)
+        );
+        self.tera.register_global_function(
             "get_url",
             global_fns::make_get_url(self.permalinks.clone(), self.config.clone())
         );
